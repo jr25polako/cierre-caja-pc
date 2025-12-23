@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corte de Caja</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ff3c00">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log("✅ Service Worker registrado"))
+        .catch(err => console.error("❌ Error al registrar el Service Worker:", err));
+    }
+  </script>
+  <style>
+    :root {
+      --color-fondo: #0e0e0e;
+      --color-texto: #ffffff;
+      --color-panel: #1b1b1b;
+      --color-boton: #ff3c00;
+      --color-boton-hover: #ff5e1a;
+      --color-borde: #333;
+      --color-tabla-par: #181818;
+      --color-th-fondo: #222;
+      --color-th-texto: #fff;
+      --color-total: #00ff88;
+    }
+
+    body.claro {
+      --color-fondo: #f4f4f4;
+      --color-texto: #000000;
+      --color-panel: #ffffff;
+      --color-boton: #ff3c00;
+      --color-boton-hover: #ff5e1a;
+      --color-borde: #ccc;
+      --color-tabla-par: #e9e9e9;
+      --color-th-fondo: #ffffff;
+      --color-th-texto: #000000;
+      --color-total: #000000;
+    }
+
+    body {
+      background: var(--color-fondo);
+      color: var(--color-texto);
+      font-family: "Poppins", sans-serif;
+      margin: 0;
+      padding: 20px;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .container {
+      background: var(--color-panel);
+      box-shadow: 0 0 10px #000;
+      padding: 20px;
+      border-radius: 12px;
+      max-width: 700px;
+      margin: auto;
+      position: relative;
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: #ff3c00;
+    }
+
+    /* Botón pequeño en esquina superior derecha */
+    .btn-tema {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 40px;
+      height: 40px;
+      font-size: 18px;
+      border-radius: 50%;
+      background: var(--color-boton);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .btn-tema:hover {
+      background: var(--color-boton-hover);
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: none;
+      border-radius: 8px;
+      background: var(--color-tabla-par);
+      color: var(--color-texto);
+      resize: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      color: var(--color-texto);
+    }
+
+    th, td {
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background: var(--color-th-fondo);
+      color: var(--color-th-texto);
+    }
+
+    tr:nth-child(even) {
+      background: var(--color-tabla-par);
+    }
+
+    .total {
+      text-align: right;
+      font-size: 1.2em;
+      margin-top: 15px;
+      color: var(--color-total);
+      font-weight: bold;
+    }
+
+    .resumen {
+      background: var(--color-panel);
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      border: 1px solid var(--color-borde);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: var(--color-boton);
+      border: none;
+      color: white;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: var(--color-boton-hover);
+    }
+
+    .btn-limpiar {
+      background: #444;
+    }
+
+    .btn-limpiar:hover {
+      background: #666;
+    }
+
+    .btn-eliminar {
+      background: #900;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn-eliminar:hover {
+      background: #c00;
+    }
+
+    .flex {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .scroll-table {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--color-borde);
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+
+    #tablaEfectivo th, #tablaEfectivo td {
+      font-size: 0.9em;
+      padding: 6px;
+    }
+
+    #tablaEfectivo th:nth-child(1) { width: 20%; }
+    #tablaEfectivo th:nth-child(2) { width: 20%; }
+    #tablaEfectivo th:nth-child(3) { width: 60%; }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button id="btnTema" class="btn-tema" onclick="toggleTema()">🌙</button>
+    <h1>Corte de Caja</h1>
+    
+    <label>📅 Fecha</label>
+    <input type="date" id="fecha">
+
+    <label>👤 Vendedor</label>
+    <select id="vendedor">
+      <option value="SALON 15">SALON 15</option>
+      <option value="SALON 18">SALON 18</option>
+      <option value="SALON 23">SALON 23</option>
+      <option value="SALON 25">SALON 25</option>
+      <option value="SALON 27">SALON 27</option>
+    </select>
+
+    <h2>💵 Conteo de Efectivo</h2>
+    <table id="tablaEfectivo">
+      <thead>
+        <tr><th>Denom.</th><th>Cant.</th><th>Total</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="total">Total Efectivo: <span id="totalEfectivo">0</span></div>
+
+<h2>💳 Operaciones</h2>
+<div class="flex">
+  <select id="tipoOperacion">
+    <option value="transferencia">TRANSFERENCIA (+)</option>
+    <option value="entrego">ENTREGÓ (+)</option>
+    <option value="tarjeta">TARJETA (+)</option>
+    <option value="compra">COMPRA (+)</option>
+    <option value="debe">DEBÉ (+)</option>
+    <option value="gasto">GASTOS (+)</option>
+    <option value="pago">PAGÓ (-)</option>
+    <option value="sencillo">SENCILLO (-)</option>
+  </select>
+
+  <textarea id="detalleOperacion" 
+            placeholder="Detalle o descripción..." 
+            rows="2"
+            oninput="this.value = this.value.toUpperCase();"
+            onkeydown="handleEnter(event)"></textarea>
+  </textarea>
+
+  <input type="text" id="montoOperacion" placeholder="Monto" inputmode="numeric" pattern="[0-9]*" oninput="formatearMiles(this)">
+</div>
+
+<button onclick="agregarOperacion()">Agregar Operación</button>
+
+<script>
+function handleEnter(e) {
+  if (e.key === "Enter") {
+    e.preventDefault(); // ❌ Evita el salto de línea
+    document.getElementById("montoOperacion").focus(); // ✅ Pasa al siguiente campo
+  }
+}
+
+// Ejemplo de función para formatear miles
+function formatearMiles(input) {
+  let value = input.value.replace(/\D/g, "");
+  input.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+// Ejemplo de función para agregar operación
+function agregarOperacion() {
+  const tipo = document.getElementById("tipoOperacion").value;
+  const detalle = document.getElementById("detalleOperacion").value;
+  const monto = document.getElementById("montoOperacion").value;
+  console.log({ tipo, detalle, monto });
+}
+</script>
+
+
+    <div class="scroll-table">
+      <table id="tablaOperaciones">
+        <thead>
+          <tr><th>Tipo</th><th>Detalle</th><th>Monto</th><th>Acción</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="total">Total Operaciones: <span id="totalOperaciones">0</span></div>
+
+    <h2>💵 Venta del Día</h2>
+    <input type="text" id="ventaDia" placeholder="Monto de venta del día" inputmode="numeric" pattern="[0-9]*" oninput="formatearMiles(this)">
+
+    <div class="resumen">
+      <div class="total">💵 Total Efectivo: <span id="resTotalEfectivo">0</span></div>
+      <div class="total">🧾 Total Operaciones: <span id="resTotalOperaciones">0</span></div>
+      <div class="total">💰 Total General: <span id="totalGeneral">0</span></div>
+      <div class="total">⚖️ Diferencia: <span id="diferencia">0</span></div>
+    </div>
+
+    <button onclick="generarReporte()">Generar Reporte</button>
+    <button class="btn-limpiar" onclick="limpiarTodo()">Limpiar Todo</button>
+  </div>
+
+  <script>
+    const denominaciones = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 100];
+    const tbody = document.querySelector("#tablaEfectivo tbody");
+    const totalEfectivo = document.querySelector("#totalEfectivo");
+    const totalOperaciones = document.querySelector("#totalOperaciones");
+    const totalGeneral = document.querySelector("#totalGeneral");
+    const diferenciaSpan = document.querySelector("#diferencia");
+    const tablaOperaciones = document.querySelector("#tablaOperaciones tbody");
+    const fechaInput = document.querySelector("#fecha");
+    const vendedorInput = document.querySelector("#vendedor");
+    const ventaDiaInput = document.querySelector("#ventaDia");
+    const resTotalEfectivo = document.querySelector("#resTotalEfectivo");
+    const resTotalOperaciones = document.querySelector("#resTotalOperaciones");
+
+    fechaInput.valueAsDate = new Date();
+
+    let efectivoTotal = 0;
+    let operaciones = [];
+    let total = 0;
+
+    function formatNumber(num) {
+      return Number(num || 0).toLocaleString("es-ES");
+    }
+
+    function parseNumber(texto) {
+      return parseFloat(texto.replace(/\./g, "").replace(",", ".") || 0);
+    }
+
+    function formatearMiles(input) {
+      let valor = input.value.replace(/\./g, "");
+      if (isNaN(valor) || valor === "") {
+        input.value = "";
+        return;
+      }
+      input.value = parseInt(valor).toLocaleString("es-ES");
+    }
+
+    denominaciones.forEach(valor => {
+      const fila = document.createElement("tr");
+      fila.innerHTML = `
+        <td>${formatNumber(valor)}</td>
+        <td><input type="number" min="0" max="9999" oninput="if(this.value.length>4)this.value=this.value.slice(0,4); calcularTotal();" data-valor="${valor}"></td>
+        <td class="subtotal">0</td>`;
+      tbody.appendChild(fila);
+    });
+
+    function calcularTotal() {
+      efectivoTotal = 0;
+      document.querySelectorAll("#tablaEfectivo tbody tr").forEach(fila => {
+        const valor = parseFloat(fila.querySelector("input").dataset.valor);
+        const cantidad = parseInt(fila.querySelector("input").value || 0);
+        const subtotal = valor * cantidad;
+        fila.querySelector(".subtotal").textContent = formatNumber(subtotal);
+        efectivoTotal += subtotal;
+      });
+      totalEfectivo.textContent = formatNumber(efectivoTotal);
+      resTotalEfectivo.textContent = formatNumber(efectivoTotal);
+      actualizarTotales();
+    }
+
+    function agregarOperacion() {
+      const tipo = document.getElementById("tipoOperacion").value;
+      const monto = parseNumber(document.getElementById("montoOperacion").value);
+      const detalle = document.getElementById("detalleOperacion").value.trim();
+      if (monto <= 0) return alert("Ingrese un monto válido");
+      if (detalle === "") return alert("Ingrese un detalle o descripción");
+      const signo = (tipo === "pago" || tipo === "sencillo") ? "-" : "+";
+      operaciones.push({ tipo, monto, detalle, signo });
+      renderOperaciones();
+      document.getElementById("montoOperacion").value = "";
+      document.getElementById("detalleOperacion").value = "";
+      actualizarTotales();
+    }
+
+    function renderOperaciones() {
+      tablaOperaciones.innerHTML = "";
+      operaciones.forEach((op, i) => {
+        const fila = document.createElement("tr");
+        fila.innerHTML = `
+          <td>${op.tipo.toUpperCase()}</td>
+          <td>${op.detalle}</td>
+          <td>${op.signo}${formatNumber(op.monto)}</td>
+          <td><button class="btn-eliminar" onclick="eliminarOperacion(${i})">🗑️</button></td>`;
+        tablaOperaciones.appendChild(fila);
+      });
+    }
+
+    function eliminarOperacion(index) {
+      if (!confirm("¿Seguro que desea eliminar esta operación?")) return;
+      operaciones.splice(index, 1);
+      renderOperaciones();
+      actualizarTotales();
+    }
+
+    function actualizarTotales() {
+      let suma = efectivoTotal;
+      let totalOps = 0;
+      operaciones.forEach(op => {
+        if (op.tipo === "pago" || op.tipo === "sencillo") suma -= op.monto;
+        else suma += op.monto;
+        totalOps += (op.tipo === "pago" || op.tipo === "sencillo") ? -op.monto : op.monto;
+      });
+      total = suma;
+      totalGeneral.textContent = formatNumber(suma);
+      totalOperaciones.textContent = formatNumber(totalOps);
+      resTotalOperaciones.textContent = formatNumber(totalOps);
+      const ventaDia = parseNumber(ventaDiaInput.value);
+      const diferencia = suma - ventaDia;
+      diferenciaSpan.textContent = formatNumber(diferencia);
+    }
+
+    ventaDiaInput.addEventListener("input", actualizarTotales);
+
+
+function generarReporte() {
+  const fecha = fechaInput.value;
+  const partes = fecha.split("-");
+  const fechaFormateada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+  const vendedor = vendedorInput.value;
+
+  // 🔹 EFECTIVO
+  let detalleEfectivo = "";
+  document.querySelectorAll("#tablaEfectivo tbody tr").forEach(fila => {
+    const denom = fila.children[0].textContent;
+    const cant = fila.children[1].querySelector("input").value;
+    const subtotal = fila.children[2].textContent;
+    const anchoMonto = 10;
+    if (cant > 0) {
+      detalleEfectivo += `${denom.padStart(7)} x ${cant.padStart(3)} = ${subtotal.padStart(anchoMonto)}\n`;
+    }
+  });
+
+  // 🔹 OPERACIONES
+  let detalleOps = "";
+  operaciones.forEach(op => {
+    const anchoMonto = 12;
+    const montoFormateado = `${op.signo}${formatNumber(op.monto)}`;
+    detalleOps += `${op.tipo.toUpperCase().padEnd(12)} ${montoFormateado.padStart(anchoMonto)}\n  ${op.detalle}\n`;
+  });
+
+  const venta = ventaDiaInput.value || "0";
+
+  // 🔹 FIRMA
+  const firma = `
+____________________________
+           FIRMA
+  `;
+
+  // 🔹 HTML estilo ticket 76mm
+  const htmlTicket = `
+<pre style="
+    font-family: monospace;
+    font-size: 20px;
+    line-height: 1.3;
+    width: 302px;
+    margin: 10px;
+    white-space: pre-wrap;
+">
+
+============================
+       CIERRE DE CAJA
+============================
+Fecha:    ${fechaFormateada}
+Vendedor: ${vendedor}
+------- EFECTIVO ----------
+${detalleEfectivo || "SIN DETALLE"}
+TOTAL EFECTIVO: ${totalEfectivo.textContent}
+
+------- OPERACIONES -------
+${detalleOps || "SIN OPERACIONES"}
+TOTAL OPERACION: ${totalOperaciones.textContent}
+
+--------- RESUMEN ---------
+TOTAL GENERAL : ${totalGeneral.textContent.padStart(10)}
+VENTA DEL DÍA : ${venta.padStart(10)}
+DIFERENCIA    : ${diferenciaSpan.textContent.padStart(10)}
+---------------------------
+
+
+
+
+${firma}
+
+  </pre>
+
+  <script>
+  window.onload = function(){
+    window.print();
+  }
+  <\/script>
+  `;
+
+  const ventana = window.open("", "PRINT", "width=400,height=600");
+  ventana.document.write(htmlTicket);
+  ventana.document.close();
+}
+
+
+    function limpiarTodo() {
+      document.querySelectorAll("#tablaEfectivo tbody input").forEach(input => input.value = 0);
+      document.querySelectorAll("#tablaEfectivo tbody .subtotal").forEach(td => td.textContent = "0");
+      operaciones = [];
+      tablaOperaciones.innerHTML = "";
+      ventaDiaInput.value = "";
+      totalEfectivo.textContent = "0";
+      totalOperaciones.textContent = "0";
+      resTotalEfectivo.textContent = "0";
+      resTotalOperaciones.textContent = "0";
+      totalGeneral.textContent = "0";
+      diferenciaSpan.textContent = "0";
+      vendedorInput.selectedIndex = 0;
+      fechaInput.valueAsDate = new Date();
+      calcularTotal();
+    }
+
+    // 🌙 Tema
+    const btnTema = document.getElementById("btnTema");
+    document.addEventListener("DOMContentLoaded", () => {
+      const temaGuardado = localStorage.getItem("tema");
+      if (temaGuardado === "claro") {
+        document.body.classList.add("claro");
+        btnTema.textContent = "🌞";
+      }
+    });
+
+    function toggleTema() {
+      const esClaro = document.body.classList.toggle("claro");
+      if (esClaro) {
+        localStorage.setItem("tema", "claro");
+        btnTema.textContent = "🌞";
+      } else {
+        localStorage.setItem("tema", "oscuro");
+        btnTema.textContent = "🌙";
+      }
+    }
+  </script>
+</body>
+</html>
